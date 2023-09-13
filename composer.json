@@ -1,6 +1,6 @@
 {
     "name": "beekmanbv/installer",
-    "description": "Beekman -Laravel application installer.",
+    "description": "Beekman - Laravel application installer.",
     "keywords": ["laravel"],
     "license": "MIT",
     "authors": [
@@ -17,21 +17,12 @@
         "symfony/console": "^6.0",
         "symfony/process": "^6.0"
     },
-    "require-dev": {
-        "phpstan/phpstan": "^1.10",
-        "phpunit/phpunit": "^9.3"
-    },
     "bin": [
-        "bin/laravel"
+        "bin/beekman"
     ],
     "autoload": {
         "psr-4": {
             "Laravel\\Installer\\Console\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Laravel\\Installer\\Console\\Tests\\": "tests/"
         }
     },
     "extra": {
