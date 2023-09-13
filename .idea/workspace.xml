@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="24ab033f-4ee8-4b3b-965c-16f99bcb1543" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bin/beekmanlocal.bat" beforeDir="false" afterPath="$PROJECT_DIR$/beekmanproject.bat" afterDir="false" />
-    </list>
+    <list default="true" id="24ab033f-4ee8-4b3b-965c-16f99bcb1543" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -95,7 +92,7 @@
       <option name="presentableId" value="Default" />
       <updated>1694590646811</updated>
       <workItem from="1694590647852" duration="8817000" />
-      <workItem from="1694603386636" duration="8716000" />
+      <workItem from="1694603386636" duration="8784000" />
     </task>
     <servers />
   </component>
