@@ -1,6 +1,0 @@
-parameters:
-  paths:
-    - bin
-    - src
-
-  level: 0

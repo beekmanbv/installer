@@ -2,8 +2,6 @@
 
 namespace Laravel\Installer\Console;
 
-use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\Composer;
 use Illuminate\Support\ProcessUtils;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
@@ -11,12 +9,13 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Composer;
 use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
+use GuzzleHttp\Client;
+use ZipArchive;
 
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\multiselect;
-use function Laravel\Prompts\select;
 use function Laravel\Prompts\text;
 
 class NewCommand extends Command
@@ -80,57 +79,183 @@ class NewCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        if (version_compare(PHP_VERSION, '8.1.0', '<')) {
+            throw new RuntimeException('The Beekman Laravel installer requires PHP 8.1.0 or greater.');
+        }
+
+        if (! extension_loaded('zip')) {
+            throw new RuntimeException('The Zip PHP extension is not installed. Please install it and try again.');
+        }
+
         $name = $input->getArgument('name');
 
         $directory = $name !== '.' ? getcwd().'/'.$name : '.';
 
         $this->composer = new Composer(new Filesystem(), $directory);
 
-        $version = $this->getVersion($input);
-
         if (! $input->getOption('force')) {
-            $this->verifyApplicationDoesntExist($directory);
+            // $this->verifyApplicationDoesntExist($directory);
         }
 
-        if ($input->getOption('force') && $directory === '.') {
-            throw new RuntimeException('Cannot use --force option when using current directory for installation!');
-        }
+        $this->info($output, "Application installing in <options=bold>[{$directory}]</>.");
 
-        $composer = $this->findComposer();
+//        $this->runTask($output, 'Extracting base application', function() use ($directory) {
+//            $zipFile = $this->makeFilename();
+//
+//            $this->download($zipFile)
+//                ->extract($zipFile, $directory)
+//                ->cleanUp($zipFile);
+//        });
 
-        $commands = [
-            $composer." create-project laravel/laravel \"$directory\" $version --remove-vcs --prefer-dist",
-        ];
+        $this->runTask($output, 'Running beekman installer', function() use ($output, $directory) {
+            $commands = [
+                $this->phpBinary().' artisan beekman:install',
+            ];
 
-        if ($directory != '.' && $input->getOption('force')) {
-            if (PHP_OS_FAMILY == 'Windows') {
-                array_unshift($commands, "(if exist \"$directory\" rd /s /q \"$directory\")");
-            } else {
-                array_unshift($commands, "rm -rf \"$directory\"");
-            }
-        }
+            $process = Process::fromShellCommandline(implode(' && ', $commands), $directory, null, null, null);
 
-        if (PHP_OS_FAMILY != 'Windows') {
-            $commands[] = "chmod 755 \"$directory/artisan\"";
-        }
-
-        if (($process = $this->runCommands($commands, $input, $output))->isSuccessful()) {
-            if ($name !== '.') {
-                $this->replaceInFile(
-                    'APP_URL=http://localhost',
-                    'APP_URL='.$this->generateAppUrl($name),
-                    $directory.'/.env'
-                );
-
-                $database = $this->promptForDatabaseOptions($input);
-
-                $this->configureDefaultDatabaseConnection($directory, $database, $name);
+            if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+                try {
+                    $process->setTty(true);
+                } catch (RuntimeException $exception) {
+                    $this->error($output, $exception->getMessage());
+                }
             }
 
-            $output->writeln("  <bg=blue;fg=white> INFO </> Application ready in <options=bold>[{$name}]</>. Build something amazing.".PHP_EOL);
-        }
+            $process->run(function ($type, $line) use ($output) {
+                $this->info($output, $line);
+            });
 
-        return $process->getExitCode();
+            if ($process->isSuccessful()) {
+                $this->info($output, 'Success');
+            }
+        });
+
+        return 0;
+    }
+
+    private function runTask(OutputInterface $output, string $message, callable $function)
+    {
+        $this->startAction($output, $message);
+        $function();
+        $this->finishAction($output, $message);
+    }
+
+    /**
+     * Output info message
+     *
+     * @param  OutputInterface  $output
+     * @param  string  $message
+     * @return void
+     */
+    private function info(OutputInterface $output, string $message)
+    {
+        $message = trim($message);
+        $output->writeln("<bg=blue;fg=white> INFO  </> {$message}".PHP_EOL);
+    }
+
+    /**
+     * Output error message
+     *
+     * @param  OutputInterface  $output
+     * @param  string  $message
+     * @return void
+     */
+    private function error(OutputInterface $output, string $message)
+    {
+        $message = trim($message);
+        $output->writeln("<bg=red;fg=white> ERROR </> {$message}".PHP_EOL);
+    }
+
+    /**
+     * Output start action message
+     *
+     * @param  OutputInterface  $output
+     * @param  string  $message
+     * @return void
+     */
+    private function startAction(OutputInterface $output, string $message)
+    {
+        $message = trim($message);
+        $output->writeln("<bg=yellow;fg=bright-yellow> START </> {$message}".PHP_EOL);
+    }
+
+    /**
+     * Output finish action message
+     *
+     * @param  OutputInterface  $output
+     * @param  string  $message
+     * @return void
+     */
+    private function finishAction(OutputInterface $output, string $message)
+    {
+        $message = trim($message);
+        $output->writeln("<bg=green;fg=white> DONE  </> {$message}".PHP_EOL);
+    }
+
+    /**
+     * Generate a random temporary filename.
+     *
+     * @return string
+     */
+    protected function makeFilename()
+    {
+        return getcwd().'/laravel_'.md5(time().uniqid()).'.zip';
+    }
+
+    /**
+     * Download the temporary Zip to the given file.
+     *
+     * @param  string  $zipFile
+     * @return $this
+     */
+    protected function download($zipFile)
+    {
+        $response = (new Client(['verify' => false ]))->get('https://gitlab.beekman.nl/developers/beekman-laravel/-/archive/master/beekman-laravel-master.zip');
+
+        file_put_contents($zipFile, $response->getBody());
+
+        return $this;
+    }
+
+    /**
+     * Extract the Zip file into the given directory.
+     *
+     * @param  string  $zipFile
+     * @param  string  $directory
+     * @return $this
+     */
+    protected function extract($zipFile, $directory)
+    {
+        $archive = new ZipArchive;
+
+        $response = $archive->open($zipFile, ZipArchive::CHECKCONS);
+
+        if ($response === ZipArchive::ER_NOZIP) {
+            throw new RuntimeException('The zip file could not download. Verify that you are able to access: https://github.com/AIbnuHIbban/larawire-installer/raw/master/v1.0.zip');
+        }
+        $archive->extractTo('./');
+
+        $archive->close();
+
+        rename('beekman-laravel-master', $directory);
+
+        return $this;
+    }
+
+    /**
+     * Clean-up the Zip file.
+     *
+     * @param  string  $zipFile
+     * @return $this
+     */
+    protected function cleanUp($zipFile)
+    {
+        @chmod($zipFile, 0777);
+
+        @unlink($zipFile);
+
+        return $this;
     }
 
     /**
@@ -141,98 +266,6 @@ class NewCommand extends Command
      * @param  string  $name
      * @return void
      */
-    protected function configureDefaultDatabaseConnection(string $directory, string $database, string $name)
-    {
-        $this->replaceInFile(
-            'DB_CONNECTION=mysql',
-            'DB_CONNECTION='.$database,
-            $directory.'/.env'
-        );
-
-        if (! in_array($database, ['sqlite'])) {
-            $this->replaceInFile(
-                'DB_CONNECTION=mysql',
-                'DB_CONNECTION='.$database,
-                $directory.'/.env.example'
-            );
-        }
-
-        $defaults = [
-            'DB_DATABASE=laravel',
-            'DB_HOST=127.0.0.1',
-            'DB_PORT=3306',
-            'DB_DATABASE=laravel',
-            'DB_USERNAME=root',
-            'DB_PASSWORD=',
-        ];
-
-        if ($database === 'sqlite') {
-            $this->replaceInFile(
-                $defaults,
-                collect($defaults)->map(fn ($default) => "# {$default}")->all(),
-                $directory.'/.env'
-            );
-
-            return;
-        }
-
-        $defaultPorts = [
-            'pgsql' => '5432',
-            'sqlsrv' => '1433',
-        ];
-
-        if (isset($defaultPorts[$database])) {
-            $this->replaceInFile(
-                'DB_PORT=3306',
-                'DB_PORT='.$defaultPorts[$database],
-                $directory.'/.env'
-            );
-
-            $this->replaceInFile(
-                'DB_PORT=3306',
-                'DB_PORT='.$defaultPorts[$database],
-                $directory.'/.env.example'
-            );
-        }
-
-        $this->replaceInFile(
-            'DB_DATABASE=laravel',
-            'DB_DATABASE='.str_replace('-', '_', strtolower($name)),
-            $directory.'/.env'
-        );
-
-        $this->replaceInFile(
-            'DB_DATABASE=laravel',
-            'DB_DATABASE='.str_replace('-', '_', strtolower($name)),
-            $directory.'/.env.example'
-        );
-    }
-
-    /**
-     * Determine the default database connection.
-     *
-     * @param  \Symfony\Component\Console\Input\InputInterface  $input
-     * @return string
-     */
-    protected function promptForDatabaseOptions(InputInterface $input)
-    {
-        $database = 'mysql';
-
-        if ($input->isInteractive()) {
-            $database = select(
-                label: 'Which database will your application use?',
-                options: [
-                    'mysql' => 'MySQL',
-                    'pgsql' => 'PostgreSQL',
-                    'sqlite' => 'SQLite',
-                    'sqlsrv' => 'SQL Server',
-                ],
-                default: $database
-            );
-        }
-
-        return $database;
-    }
 
     /**
      * Verify that the application does not already exist.
@@ -248,55 +281,6 @@ class NewCommand extends Command
     }
 
     /**
-     * Generate a valid APP_URL for the given application name.
-     *
-     * @param  string  $name
-     * @return string
-     */
-    protected function generateAppUrl($name)
-    {
-        $hostname = mb_strtolower($name).'.test';
-
-        return $this->canResolveHostname($hostname) ? 'http://'.$hostname : 'http://localhost';
-    }
-
-    /**
-     * Determine whether the given hostname is resolvable.
-     *
-     * @param  string  $hostname
-     * @return bool
-     */
-    protected function canResolveHostname($hostname)
-    {
-        return gethostbyname($hostname.'.') !== $hostname.'.';
-    }
-
-    /**
-     * Get the version that should be downloaded.
-     *
-     * @param  \Symfony\Component\Console\Input\InputInterface  $input
-     * @return string
-     */
-    protected function getVersion(InputInterface $input)
-    {
-        if ($input->getOption('dev')) {
-            return 'dev-master';
-        }
-
-        return '';
-    }
-
-    /**
-     * Get the composer command for the environment.
-     *
-     * @return string
-     */
-    protected function findComposer()
-    {
-        return implode(' ', $this->composer->findComposer());
-    }
-
-    /**
      * Get the path to the appropriate PHP binary.
      *
      * @return string
@@ -308,115 +292,5 @@ class NewCommand extends Command
         return $phpBinary !== false
             ? ProcessUtils::escapeArgument($phpBinary)
             : 'php';
-    }
-
-    /**
-     * Install the given Composer Packages into the application.
-     *
-     * @return bool
-     */
-    protected function requireComposerPackages(array $packages, OutputInterface $output, bool $asDev = false)
-    {
-        return $this->composer->requirePackages($packages, $asDev, $output);
-    }
-
-    /**
-     * Remove the given Composer Packages from the application.
-     *
-     * @return bool
-     */
-    protected function removeComposerPackages(array $packages, OutputInterface $output, bool $asDev = false)
-    {
-        return $this->composer->removePackages($packages, $asDev, $output);
-    }
-
-    /**
-     * Run the given commands.
-     *
-     * @param  array  $commands
-     * @param  \Symfony\Component\Console\Input\InputInterface  $input
-     * @param  \Symfony\Component\Console\Output\OutputInterface  $output
-     * @param  string|null  $workingPath
-     * @param  array  $env
-     * @return \Symfony\Component\Process\Process
-     */
-    protected function runCommands($commands, InputInterface $input, OutputInterface $output, string $workingPath = null, array $env = [])
-    {
-        if (! $output->isDecorated()) {
-            $commands = array_map(function ($value) {
-                if (substr($value, 0, 5) === 'chmod') {
-                    return $value;
-                }
-
-                if (substr($value, 0, 3) === 'git') {
-                    return $value;
-                }
-
-                return $value.' --no-ansi';
-            }, $commands);
-        }
-
-        if ($input->getOption('quiet')) {
-            $commands = array_map(function ($value) {
-                if (substr($value, 0, 5) === 'chmod') {
-                    return $value;
-                }
-
-                if (substr($value, 0, 3) === 'git') {
-                    return $value;
-                }
-
-                return $value.' --quiet';
-            }, $commands);
-        }
-
-        $process = Process::fromShellCommandline(implode(' && ', $commands), $workingPath, $env, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            try {
-                $process->setTty(true);
-            } catch (RuntimeException $e) {
-                $output->writeln('  <bg=yellow;fg=black> WARN </> '.$e->getMessage().PHP_EOL);
-            }
-        }
-
-        $process->run(function ($type, $line) use ($output) {
-            $output->write('    '.$line);
-        });
-
-        return $process;
-    }
-
-    /**
-     * Replace the given file.
-     *
-     * @param  string  $replace
-     * @param  string  $file
-     * @return void
-     */
-    protected function replaceFile(string $replace, string $file)
-    {
-        $stubs = dirname(__DIR__).'/stubs';
-
-        file_put_contents(
-            $file,
-            file_get_contents("$stubs/$replace"),
-        );
-    }
-
-    /**
-     * Replace the given string in the given file.
-     *
-     * @param  string|array  $search
-     * @param  string|array  $replace
-     * @param  string  $file
-     * @return void
-     */
-    protected function replaceInFile(string|array $search, string|array $replace, string $file)
-    {
-        file_put_contents(
-            $file,
-            str_replace($search, $replace, file_get_contents($file))
-        );
     }
 }
