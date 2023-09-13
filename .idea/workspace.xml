@@ -5,7 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="24ab033f-4ee8-4b3b-965c-16f99bcb1543" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/bin/beekman" beforeDir="false" afterPath="$PROJECT_DIR$/bin/beekman" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/beekmanlocal.bat" beforeDir="false" afterPath="$PROJECT_DIR$/beekmanproject.bat" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -79,6 +80,12 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\Projecten\Installer" />
+      <recent name="D:\Projecten\Installer\bat" />
+    </key>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -88,7 +95,7 @@
       <option name="presentableId" value="Default" />
       <updated>1694590646811</updated>
       <workItem from="1694590647852" duration="8817000" />
-      <workItem from="1694603386636" duration="8180000" />
+      <workItem from="1694603386636" duration="8716000" />
     </task>
     <servers />
   </component>
