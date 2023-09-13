@@ -5,18 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="24ab033f-4ee8-4b3b-965c-16f99bcb1543" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/php.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/php.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/RELEASE.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/composer.json" beforeDir="false" afterPath="$PROJECT_DIR$/composer.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/phpstan.neon.dist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/phpunit.xml.dist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Concerns/ConfiguresPrompts.php" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/NewCommand.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/NewCommand.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests-output/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/beekman" beforeDir="false" afterPath="$PROJECT_DIR$/bin/beekman" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -99,7 +88,7 @@
       <option name="presentableId" value="Default" />
       <updated>1694590646811</updated>
       <workItem from="1694590647852" duration="8817000" />
-      <workItem from="1694603386636" duration="8007000" />
+      <workItem from="1694603386636" duration="8180000" />
     </task>
     <servers />
   </component>
