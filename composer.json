@@ -1,6 +1,6 @@
 {
-    "name": "laravel/installer",
-    "description": "Laravel application installer.",
+    "name": "beekmanbv/installer",
+    "description": "Beekman -Laravel application installer.",
     "keywords": ["laravel"],
     "license": "MIT",
     "authors": [
