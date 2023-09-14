@@ -2,7 +2,6 @@
 
 namespace Laravel\Installer\Console;
 
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\ProcessUtils;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
@@ -127,6 +126,8 @@ class NewCommand extends Command
 
         $directory = $name !== '.' ? getcwd().'/'.$name : '.';
 
+        $hostname = mb_strtolower($name).'.local';
+
         $this->composer = new Composer(new Filesystem(), $directory);
 
         if (! $input->getOption('force')) {
@@ -165,11 +166,9 @@ class NewCommand extends Command
                 ->cleanUp($zipFile);
         });
 
-        $this->runTask($output, 'Setup ENV file', function() use ($input, $directory, $name) {
+        $this->runTask($output, 'Setup ENV file', function() use ($input, $directory, $name, $hostname) {
             // copy env
             copy($directory.'/.env.example', $directory.'/.env');
-
-            $hostname = mb_strtolower($name).'.local';
 
             // replace app settings
             $this->replaceInFile(
@@ -241,27 +240,26 @@ class NewCommand extends Command
             );
         });
 
-        $this->runTask($output, 'Running beekman installer', function() use ($output, $directory) {
+        $this->runTask($output, 'Running composer install', function() use ($output, $input, $directory, $hostname) {
+            $commands = [
+                $this->findComposer().' install',
+            ];
+
+            $process = $this->runCommands($commands, $input, $output, workingPath: $directory);
+
+            if (!$process->isSuccessful()) {
+                Throw new \Exception('Can\'t install composer packages');
+            }
+        });
+
+
+        $this->runTask($output, 'Running beekman installer', function() use ($output, $input, $directory, $hostname) {
             $commands = [
                 $this->phpBinary().' artisan beekman:install',
             ];
 
-            $process = Process::fromShellCommandline(implode(' && ', $commands), $directory, null, null, null);
-
-            if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-                try {
-                    $process->setTty(true);
-                } catch (RuntimeException $exception) {
-                    $this->error($output, $exception->getMessage());
-                }
-            }
-
-            $process->run(function ($type, $line) use ($output) {
-                $this->info($output, $line);
-            });
-
-            if ($process->isSuccessful()) {
-                $this->info($output, 'Success');
+            if (($process = $this->runCommands($commands, $input, $output, workingPath: $directory))->isSuccessful()) {
+                $this->info($output, 'Application ready at http://'.$hostname);
             }
         });
 
@@ -415,6 +413,16 @@ class NewCommand extends Command
     }
 
     /**
+     * Get the composer command for the environment.
+     *
+     * @return string
+     */
+    protected function findComposer()
+    {
+        return implode(' ', $this->composer->findComposer());
+    }
+
+    /**
      * Get the path to the appropriate PHP binary.
      *
      * @return string
@@ -426,6 +434,63 @@ class NewCommand extends Command
         return $phpBinary !== false
             ? ProcessUtils::escapeArgument($phpBinary)
             : 'php';
+    }
+
+    /**
+     * Run the given commands.
+     *
+     * @param  array  $commands
+     * @param  \Symfony\Component\Console\Input\InputInterface  $input
+     * @param  \Symfony\Component\Console\Output\OutputInterface  $output
+     * @param  string|null  $workingPath
+     * @param  array  $env
+     * @return \Symfony\Component\Process\Process
+     */
+    protected function runCommands($commands, InputInterface $input, OutputInterface $output, string $workingPath = null, array $env = [])
+    {
+        if (! $output->isDecorated()) {
+            $commands = array_map(function ($value) {
+                if (substr($value, 0, 5) === 'chmod') {
+                    return $value;
+                }
+
+                if (substr($value, 0, 3) === 'git') {
+                    return $value;
+                }
+
+                return $value.' --no-ansi';
+            }, $commands);
+        }
+
+        if ($input->getOption('quiet')) {
+            $commands = array_map(function ($value) {
+                if (substr($value, 0, 5) === 'chmod') {
+                    return $value;
+                }
+
+                if (substr($value, 0, 3) === 'git') {
+                    return $value;
+                }
+
+                return $value.' --quiet';
+            }, $commands);
+        }
+
+        $process = Process::fromShellCommandline(implode(' && ', $commands), $workingPath, $env, null, null);
+
+        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+            try {
+                $process->setTty(true);
+            } catch (RuntimeException $e) {
+                $output->writeln('  <bg=yellow;fg=black> WARN </> '.$e->getMessage().PHP_EOL);
+            }
+        }
+
+        $process->run(function ($type, $line) use ($output) {
+            $this->info($output, $line);
+        });
+
+        return $process;
     }
 
     /**
