@@ -94,18 +94,18 @@ class NewCommand extends Command
         $this->composer = new Composer(new Filesystem(), $directory);
 
         if (! $input->getOption('force')) {
-            // $this->verifyApplicationDoesntExist($directory);
+            $this->verifyApplicationDoesntExist($directory);
         }
 
         $this->info($output, "Application installing in <options=bold>[{$directory}]</>.");
 
-//        $this->runTask($output, 'Extracting base application', function() use ($directory) {
-//            $zipFile = $this->makeFilename();
-//
-//            $this->download($zipFile)
-//                ->extract($zipFile, $directory)
-//                ->cleanUp($zipFile);
-//        });
+        $this->runTask($output, 'Extracting base application', function() use ($directory) {
+            $zipFile = $this->makeFilename();
+
+            $this->download($zipFile)
+                ->extract($zipFile, $directory)
+                ->cleanUp($zipFile);
+        });
 
         $this->runTask($output, 'Running beekman installer', function() use ($output, $directory) {
             $commands = [
