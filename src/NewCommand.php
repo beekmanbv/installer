@@ -2,6 +2,7 @@
 
 namespace Laravel\Installer\Console;
 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\ProcessUtils;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
@@ -40,6 +41,10 @@ class NewCommand extends Command
             ->setName('new')
             ->setDescription('Create a new Beekman Laravel application')
             ->addArgument('name', InputArgument::REQUIRED)
+            ->addOption('database_host', null, InputOption::VALUE_OPTIONAL, 'Database host')
+            ->addOption('database_name', null, InputOption::VALUE_OPTIONAL, 'Database name')
+            ->addOption('database_username', null, InputOption::VALUE_OPTIONAL, 'Database username')
+            ->addOption('database_password', null, InputOption::VALUE_OPTIONAL, 'Database password')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Forces install even if the directory already exists');
     }
 
@@ -68,6 +73,37 @@ class NewCommand extends Command
                     : null,
             ));
         }
+
+        $output->write(PHP_EOL.'Give me some database connection info'.PHP_EOL.PHP_EOL);
+
+        if (! $input->getOption('database_host')) {
+            $input->setOption('database_host', text(
+                label: 'Op welk ipadres kunnen we de database bereiken?',
+                placeholder: 'E.g. 130.0.1.42',
+                required: 'Veld is verplicht.'
+            ));
+        }
+
+        if (! $input->getOption('database_name')) {
+            $input->setOption('database_name', text(
+                label: 'Welke database wil je gebruiken?',
+                required: 'Veld is verplicht.'
+            ));
+        }
+
+        if (! $input->getOption('database_username')) {
+            $input->setOption('database_username', text(
+                label: 'Welke database gebruiker wil je gebruiken?',
+                required: 'Veld is verplicht.'
+            ));
+        }
+
+        if (! $input->getOption('database_password')) {
+            $input->setOption('database_password', text(
+                label: 'Welke database wachtwoord wil je gebruiken?',
+                required: 'Veld is verplicht.'
+            ));
+        }
     }
 
     /**
@@ -87,7 +123,7 @@ class NewCommand extends Command
             throw new RuntimeException('The Zip PHP extension is not installed. Please install it and try again.');
         }
 
-        $name = $input->getArgument('name');
+        $name = mb_strtolower($input->getArgument('name'));
 
         $directory = $name !== '.' ? getcwd().'/'.$name : '.';
 
@@ -97,6 +133,28 @@ class NewCommand extends Command
             $this->verifyApplicationDoesntExist($directory);
         }
 
+        if ($input->getOption('force') && $directory === '.') {
+            throw new RuntimeException('Cannot use --force option when using current directory for installation!');
+        }
+
+        if ($directory != '.' && $input->getOption('force')) {
+            if (PHP_OS_FAMILY == 'Windows') {
+                $commands[] = "(if exist \"$directory\" rd /s /q \"$directory\")";
+            } else {
+                $commands[] = "rm -rf \"$directory\"";
+            }
+
+            $cleanup = Process::fromShellCommandline(implode(' && ', $commands), $directory, null, null, null);
+            $cleanup->run(function ($type, $line) use ($output) {
+                $this->info($output, $line);
+            });
+
+            if ($cleanup->isSuccessful()) {
+                $this->info($output, 'Success');
+            }
+        }
+
+
         $this->info($output, "Application installing in <options=bold>[{$directory}]</>.");
 
         $this->runTask($output, 'Extracting base application', function() use ($directory) {
@@ -105,6 +163,82 @@ class NewCommand extends Command
             $this->download($zipFile)
                 ->extract($zipFile, $directory)
                 ->cleanUp($zipFile);
+        });
+
+        $this->runTask($output, 'Setup ENV file', function() use ($input, $directory, $name) {
+            // copy env
+            copy($directory.'/.env.example', $directory.'/.env');
+
+            $hostname = mb_strtolower($name).'.local';
+
+            // replace app settings
+            $this->replaceInFile(
+                'APP_URL=http://localhost',
+                'APP_URL=http://'.$hostname,
+                $directory.'/.env'
+            );
+
+            // replace artisan path
+            $this->replaceInFile(
+                'ARTISAN_BASE_PATH=/home/vagrant/code',
+                'ARTISAN_BASE_PATH=/home/vagrant/code/'.$name,
+                $directory.'/.env'
+            );
+
+            // replace database settings
+            $this->replaceInFile(
+                'DB_HOST=127.0.0.1',
+                'DB_HOST='.$input->getOption('database_host'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_DATABASE=beekman',
+                'DB_DATABASE='.$input->getOption('database_name'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_USERNAME=beekman',
+                'DB_USERNAME='.$input->getOption('database_username'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_PASSWORD=beekman',
+                'DB_PASSWORD="'. $input->getOption('database_password'). '"',
+                $directory.'/.env'
+            );
+            // for locking
+            $this->replaceInFile(
+                'DB_LOCKS_HOST=127.0.0.1',
+                'DB_LOCKS_HOST='.$input->getOption('database_host'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_LOCKS_DATABASE=beekman',
+                'DB_LOCKS_DATABASE='.$input->getOption('database_name'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_LOCKS_USERNAME=beekman',
+                'DB_LOCKS_USERNAME='.$input->getOption('database_username'),
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'DB_LOCKS_PASSWORD=beekman',
+                'DB_LOCKS_PASSWORD="'. $input->getOption('database_password'). '"',
+                $directory.'/.env'
+            );
+
+            // replace pusher settings
+            $this->replaceInFile(
+                'PUSHER_APP_ID=beekman',
+                'PUSHER_APP_ID=beekman'.$name,
+                $directory.'/.env'
+            );
+            $this->replaceInFile(
+                'PUSHER_HOST=localhost.local',
+                'PUSHER_HOST='.$hostname,
+                $directory.'/.env'
+            );
         });
 
         $this->runTask($output, 'Running beekman installer', function() use ($output, $directory) {
@@ -292,5 +426,21 @@ class NewCommand extends Command
         return $phpBinary !== false
             ? ProcessUtils::escapeArgument($phpBinary)
             : 'php';
+    }
+
+    /**
+     * Replace the given string in the given file.
+     *
+     * @param  string|array  $search
+     * @param  string|array  $replace
+     * @param  string  $file
+     * @return void
+     */
+    protected function replaceInFile(string|array $search, string|array $replace, string $file)
+    {
+        file_put_contents(
+            $file,
+            str_replace($search, $replace, file_get_contents($file))
+        );
     }
 }
