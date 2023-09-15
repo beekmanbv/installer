@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="24ab033f-4ee8-4b3b-965c-16f99bcb1543" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/beekman" beforeDir="false" afterPath="$PROJECT_DIR$/bin/beekman" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/NewCommand.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/NewCommand.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -71,7 +72,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "WebServerToolWindowFactoryState": "false",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "D:/Projecten/device-importer",
+    "last_opened_file_path": "D:/Projecten/Installer",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -96,6 +97,8 @@
       <updated>1694590646811</updated>
       <workItem from="1694590647852" duration="8817000" />
       <workItem from="1694603386636" duration="16586000" />
+      <workItem from="1694699859009" duration="1775000" />
+      <workItem from="1694784987584" duration="116000" />
     </task>
     <servers />
   </component>

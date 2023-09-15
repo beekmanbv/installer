@@ -201,7 +201,7 @@ class NewCommand extends Command
                 $directory.'/.env'
             );
             $this->replaceInFile(
-                'DB_PASSWORD=beekman',
+                'DB_PASSWORD="beekman"',
                 'DB_PASSWORD="'. $input->getOption('database_password'). '"',
                 $directory.'/.env'
             );
@@ -222,7 +222,7 @@ class NewCommand extends Command
                 $directory.'/.env'
             );
             $this->replaceInFile(
-                'DB_LOCKS_PASSWORD=beekman',
+                'DB_LOCKS_PASSWORD="beekman"',
                 'DB_LOCKS_PASSWORD="'. $input->getOption('database_password'). '"',
                 $directory.'/.env'
             );
