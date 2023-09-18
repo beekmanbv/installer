@@ -259,7 +259,7 @@ class NewCommand extends Command
             ];
 
             if (($process = $this->runCommands($commands, $input, $output, workingPath: $directory))->isSuccessful()) {
-                $this->info($output, 'Application ready at http://'.$hostname);
+                $this->info($output, 'Application ready at http://'.$hostname . ' use admin/beekm@n01 to sign in');
             }
         });
 
