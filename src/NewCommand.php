@@ -168,7 +168,7 @@ class NewCommand extends Command
 
         $this->runTask($output, 'Setup ENV file', function() use ($input, $directory, $name, $hostname) {
             // copy env
-            copy($directory.'/.env.example', $directory.'/.env');
+            copy($directory.'/.env.install', $directory.'/.env');
 
             // replace app settings
             $this->replaceInFile(
